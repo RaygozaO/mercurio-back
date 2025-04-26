@@ -73,5 +73,5 @@ exports.crearPaciente = async (req, res) => {
         console.error('❌ Error al crear paciente:', err);
         res.status(500).json({ message: 'Error interno', error: err });
     }
-    console.log('Paciente creado correctamente');
+    console.log('Verificando el jenkins');
 };
