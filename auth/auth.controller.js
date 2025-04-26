@@ -50,4 +50,5 @@ exports.login = (req, res) => {
             res.json({ token, role: user.id_rol });
         });
     });
+    console.log('Login correcto');
 };
