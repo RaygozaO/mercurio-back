@@ -7,6 +7,12 @@ pipeline {
     }
 
     stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
         stage('Setup Deploy Directory') {
             steps {
                 script {
@@ -20,12 +26,6 @@ pipeline {
                         error "Branch '${env.BRANCH_NAME}' no tiene configuración de despliegue."
                     }
                 }
-            }
-        }
-
-        stage('Checkout') {
-            steps {
-                checkout scm
             }
         }
 
