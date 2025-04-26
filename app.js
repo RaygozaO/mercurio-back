@@ -8,7 +8,7 @@ const pacientesRoutes = require('./routes/pacientes.routes');
 
 // 🛡️ Configurar CORS
 app.use(cors({
-    origin: ['http://localhost:4200', 'http://mercurio.local'],
+    origin: ['http://localhost:4200','https://farmacia-mercurio.com', 'http://mercurio.local'],
     methods: 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
     credentials: true
 }));
