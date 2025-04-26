@@ -14,8 +14,8 @@ pipeline {
                         env.DEPLOY_DIR = "/var/www/mercurio-back"
                         env.PM2_APP_NAME = "mercurio-back"
                     } else if (env.BRANCH_NAME == 'develop') {
-                        env.DEPLOY_DIR = "/var/www/mercurio-back-dev"
-                        env.PM2_APP_NAME = "mercurio-back-dev"
+                        env.DEPLOY_DIR = "/var/www/mercurio-back"
+                        env.PM2_APP_NAME = "mercurio-back"
                     } else {
                         error "Branch '${env.BRANCH_NAME}' no tiene configuración de despliegue."
                     }
