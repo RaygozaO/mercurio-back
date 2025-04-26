@@ -20,4 +20,3 @@ app.use('/api/pacientes', pacientesRoutes);
 app.listen(3000, () => {
     console.log('🚀 Backend iniciado en http://localhost:3000');
 });
-
