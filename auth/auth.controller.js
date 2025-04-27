@@ -1,4 +1,4 @@
-const db = require('../config/db'); // Ya es el pool con promise()
+const db = require('../config/db'); // Ahora es pool.promise()
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
@@ -25,7 +25,7 @@ exports.register = async (req, res) => {
     }
 };
 
-// Login con captcha básico (ej: 3+4 = 7)
+// Login de usuario
 exports.login = async (req, res) => {
     const { email, pass, captchaAnswer, captchaExpected } = req.body;
 
