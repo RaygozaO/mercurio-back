@@ -1,18 +1,14 @@
 const mysql = require('mysql2');
 
-const connection = mysql.createConnection({
+const pool = mysql.createPool({
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'mercurio',
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
 });
 
-connection.connect((err) => {
-    if (err) {
-        console.error('❌ Error al conectar a MySQL:', err);
-        return;
-    }
-    console.log('✅ Conectado a la base de datos MySQL');
-});
-
-module.exports = connection;
+// Exportar pool como Promises para poder usar async/await
+module.exports = pool.promise();
