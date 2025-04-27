@@ -21,8 +21,14 @@ exports.register = async (req, res) => {
         res.status(201).json({ message: 'Usuario creado correctamente' });
     } catch (error) {
         console.error('❌ Error al registrar usuario:', error);
-        res.status(500).json({ message: 'Error al registrar usuario', error: error.message });
+        res.status(500).json({
+            message: 'Error al registrar usuario',
+            sqlMessage: error.sqlMessage,
+            code: error.code,
+            fatal: error.fatal
+        });
     }
+
 };
 
 // Login de usuario
