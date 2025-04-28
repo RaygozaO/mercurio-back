@@ -1,77 +1,178 @@
-// archivo: controllers/pacientes.controller.js
-const connection = require('../config/db');
+const db = require('../config/db');
 const bcrypt = require('bcryptjs');
 
+
 exports.crearPaciente = async (req, res) => {
+    console.log('👉 Recibida solicitud crearPaciente', req.body);
+
     const { paciente, usuario, domicilio } = req.body;
 
     try {
-        // Validación básica
         if (!usuario || !usuario.email || !usuario.password || !paciente || !domicilio) {
             return res.status(400).json({ message: 'Datos incompletos' });
         }
 
-        // Hashear contraseña
-        const hashedPassword = bcrypt.hashSync(usuario.password, 8);
+        // Insertar o actualizar usuario
+        let usuarioId = usuario.idusuario;
 
-        // Insertar usuario
-        const insertUsuario = await new Promise((resolve, reject) => {
-            const query = 'INSERT INTO usuarios (nombreusuario, email, pass, id_rol) VALUES (?, ?, ?, ?)';
-            connection.query(query, [usuario.nombreusuario, usuario.email, hashedPassword, 3], (err, result) => {
-                if (err) return reject(err);
-                resolve(result.insertId);
-            });
-        });
+        if (!usuarioId || usuarioId === 0) {
+            const hashedPassword = bcrypt.hashSync(usuario.password, 8);
 
-        // Buscar IDs de colonia, municipio y entidad por nombre
-        const [colonia] = await connection.promise().query('SELECT idcolonia, id_municipio, id_codigopostal FROM colonias WHERE nombrecolonia = ? LIMIT 1', [domicilio.coloniasSelected]);
-        if (!colonia.length) return res.status(400).json({ message: 'Colonia no encontrada' });
+            const [insertUsuario] = await db.query(
+                'INSERT INTO usuarios (nombreusuario, email, pass, id_rol) VALUES (?, ?, ?, ?)',
+                [usuario.nombreusuario, usuario.email, hashedPassword, 6]
+            );
+            usuarioId = insertUsuario.insertId;
+            console.log('✅ Usuario creado con ID:', usuarioId);
+        } else {
+            const hashedPassword = bcrypt.hashSync(usuario.password, 8);
+            await db.query(
+                'UPDATE usuarios SET nombreusuario = ?, email = ?, pass = ? WHERE idusuario = ?',
+                [usuario.nombreusuario, usuario.email, hashedPassword, usuarioId]
+            );
+            console.log('✅ Usuario actualizado correctamente');
+        }
 
-        const id_colonia = colonia[0].idcolonia;
-        const id_cp = colonia[0].id_codigopostal;
-        const id_municipio = colonia[0].id_municipio;
+        // 🔥 Buscar si ya existe cliente para este usuario
+        const [clienteExistente] = await db.query(
+            'SELECT idcliente, id_domicilio FROM cliente WHERE id_usuario = ? LIMIT 1',
+            [usuarioId]
+        );
 
-        const [municipio] = await connection.promise().query('SELECT id_entidad FROM municipio WHERE idmunicipio = ? LIMIT 1', [id_municipio]);
-        const id_entidad = municipio[0][0].id_entidad;
+        // Buscar colonia, municipio y entidad
+        const [coloniaResult] = await db.query(
+            'SELECT idcolonia, id_municipio, id_codigopostal FROM colonias WHERE nombrecolonia = ? LIMIT 1',
+            [domicilio.coloniasSelected]
+        );
 
-        // Insertar domicilio
-        const insertDomicilio = await new Promise((resolve, reject) => {
-            const query = 'INSERT INTO domicilio (calle, numero, interior, id_cp, id_colonia, id_municipio, id_entidad) VALUES (?, ?, ?, ?, ?, ?, ?)';
-            connection.query(query, [
-                domicilio.calle,
-                domicilio.numero,
-                domicilio.interior || '',
-                id_cp,
-                id_colonia,
-                id_municipio,
-                id_entidad
-            ], (err, result) => {
-                if (err) return reject(err);
-                resolve(result.insertId);
-            });
-        });
+        if (coloniaResult.length === 0) {
+            return res.status(400).json({ message: 'Colonia no encontrada' });
+        }
 
-        // Insertar paciente
-        const insertPaciente = await new Promise((resolve, reject) => {
-            const query = 'INSERT INTO cliente (nombrecliente, apellidopaterno, apellidomaterno, telefono, id_usuario, id_domicilio) VALUES (?, ?, ?, ?, ?, ?)';
-            connection.query(query, [
-                paciente.nombrecliente,
-                paciente.apellidopaterno,
-                paciente.apellidomaterno,
-                paciente.telefono,
-                insertUsuario,
-                insertDomicilio
-            ], (err, result) => {
-                if (err) return reject(err);
-                resolve(result.insertId);
-            });
-        });
+        const { idcolonia, id_municipio, id_codigopostal } = coloniaResult[0];
 
-        res.status(201).json({ message: 'Paciente creado correctamente', id: insertPaciente });
+        const [municipioResult] = await db.query(
+            'SELECT id_entidadfederativa FROM municipio WHERE idmunicipio = ? LIMIT 1',
+            [id_municipio]
+        );
+
+        const id_entidad = municipioResult[0].id_entidadfederativa;
+
+        let id_domicilio;
+
+        if (clienteExistente.length > 0) {
+            // 🔥 Ya existe cliente ➔ Actualizar cliente y actualizar domicilio también
+            console.log('⚡ Cliente ya existe. Actualizando cliente y domicilio...');
+
+            const idcliente = clienteExistente[0].idcliente;
+            id_domicilio = clienteExistente[0].id_domicilio;
+
+            // Actualizar cliente
+            await db.query(
+                'UPDATE cliente SET nombrecliente = ?, apellidopaterno = ?, apellidomaterno = ?, telefono = ? WHERE idcliente = ?',
+                [
+                    paciente.nombrecliente,
+                    paciente.apellidopaterno,
+                    paciente.apellidomaterno,
+                    paciente.telefono,
+                    idcliente
+                ]
+            );
+
+            // Actualizar domicilio
+            await db.query(
+                'UPDATE domicilio SET calle = ?, numero = ?, interior = ?, id_cp = ?, id_colonia = ?, id_municipio = ?, id_entidad = ? WHERE iddireccioncliente = ?',
+                [
+                    domicilio.calle,
+                    domicilio.numero,
+                    domicilio.interior || '',
+                    id_codigopostal,
+                    idcolonia,
+                    id_municipio,
+                    id_entidad,
+                    id_domicilio
+                ]
+            );
+
+            console.log('✅ Cliente y domicilio actualizados correctamente');
+        } else {
+            // 🔥 No existe cliente ➔ Insertar domicilio y cliente
+            console.log('✅ Insertando nuevo cliente y domicilio...');
+
+            const [insertDomicilio] = await db.query(
+                'INSERT INTO domicilio (calle, numero, interior, id_cp, id_colonia, id_municipio, id_entidad) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                [
+                    domicilio.calle,
+                    domicilio.numero,
+                    domicilio.interior || '',
+                    id_codigopostal,
+                    idcolonia,
+                    id_municipio,
+                    id_entidad
+                ]
+            );
+            id_domicilio = insertDomicilio.insertId;
+
+            const [insertPaciente] = await db.query(
+                'INSERT INTO cliente (nombrecliente, apellidopaterno, apellidomaterno, telefono, id_usuario, id_domicilio) VALUES (?, ?, ?, ?, ?, ?)',
+                [
+                    paciente.nombrecliente,
+                    paciente.apellidopaterno,
+                    paciente.apellidomaterno,
+                    paciente.telefono,
+                    usuarioId,
+                    id_domicilio
+                ]
+            );
+
+            console.log('✅ Paciente nuevo creado con ID:', insertPaciente.insertId);
+        }
+
+        res.status(201).json({ message: 'Paciente registrado o actualizado correctamente' });
 
     } catch (err) {
-        console.error('❌ Error al crear paciente:', err);
-        res.status(500).json({ message: 'Error interno', error: err });
+        console.error('❌ Error al crear/actualizar paciente:', err);
+        res.status(500).json({ message: 'Error interno', error: err.message });
     }
-    console.log('Verificando el jenkins');
+};
+
+
+// Buscar usuario
+exports.buscarUsuario = async (req, res) => {
+    const { termino } = req.params;
+    try {
+        const [rows] = await db.query(
+            `SELECT idusuario, nombreusuario, email
+             FROM usuarios
+             WHERE nombreusuario LIKE ? OR email LIKE ?
+                 LIMIT 10`,
+            [`%${termino}%`, `%${termino}%`]
+        );
+        res.json(rows);
+    } catch (error) {
+        console.error('❌ Error buscando usuario:', error);
+        res.status(500).json({ error: 'Error buscando usuario' });
+    }
+};
+// Buscar colonias por código postal
+exports.buscarColonias = async (req, res) => {
+    const { cp } = req.params;
+    try {
+        const [rows] = await connection.promise().query(
+            `SELECT
+          c.nombrecolonia,
+          m.nombremunicipio,
+          e.nombreentidad
+       FROM colonias c
+       JOIN municipio m ON c.id_municipio = m.idmunicipio
+       JOIN entidadfederativa e ON m.id_entidadfederativa = e.identidadfederativa
+       JOIN codigopostal cp ON c.id_codigopostal = cp.idcodigopostal
+       WHERE cp.codigopostal = ?`,
+            [cp]
+        );
+        res.json(rows);
+    } catch (error) {
+        console.error('❌ Error buscando colonias:', error);
+        res.status(500).json({ error: 'Error buscando colonias' });
+    }
 };

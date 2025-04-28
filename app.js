@@ -5,6 +5,7 @@ require('dotenv').config();
 
 const authRoutes = require('./auth/auth.routes');
 const pacientesRoutes = require('./routes/pacientes.routes');
+const coloniasRoutes = require('./routes/colonias.routes');
 
 // 🛡️ Configurar CORS
 app.use(cors({
@@ -16,7 +17,7 @@ app.use(cors({
 app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/pacientes', pacientesRoutes);
-app.use('/api/pacientes', pacientesRoutes);
+app.use('/api/colonias', coloniasRoutes);
 
 app.listen(3000, () => {
     console.log('🚀 Backend iniciado en http://localhost:3000');
