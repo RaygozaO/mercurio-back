@@ -17,10 +17,9 @@ exports.crearPaciente = async (req, res) => {
 
         if (!usuarioId || usuarioId === 0) {
             const hashedPassword = bcrypt.hashSync(usuario.password, 8);
-
             const [insertUsuario] = await db.query(
-                'INSERT INTO usuarios (nombreusuario, email, pass, id_rol) VALUES (?, ?, ?, ?)',
-                [usuario.nombreusuario, usuario.email, hashedPassword, 6]
+                'INSERT INTO usuarios (nombreusuario, email, pass,enabled, id_rol) VALUES (?, ?, ?, ?, ?)',
+                [usuario.nombreusuario, usuario.email, hashedPassword, 1, 6]
             );
             usuarioId = insertUsuario.insertId;
             console.log('✅ Usuario creado con ID:', usuarioId);
@@ -33,9 +32,10 @@ exports.crearPaciente = async (req, res) => {
             console.log('✅ Usuario actualizado correctamente');
         }
 
-        // 🔥 Buscar si ya existe cliente para este usuario
+        // Buscar si ya existe cliente para este usuario
         const [clienteExistente] = await db.query(
-            'SELECT idcliente, id_domicilio FROM cliente WHERE id_usuario = ? LIMIT 1',
+            `SELECT idcliente, id_domicilio FROM cliente c JOIN mercurio.usuarios u
+                                                                on u.idusuario = c.idcliente WHERE idusuario = ? LIMIT 1`,
             [usuarioId]
         );
 
@@ -59,9 +59,10 @@ exports.crearPaciente = async (req, res) => {
         const id_entidad = municipioResult[0].id_entidadfederativa;
 
         let id_domicilio;
+        let idPaciente;
 
         if (clienteExistente.length > 0) {
-            // 🔥 Ya existe cliente ➔ Actualizar cliente y actualizar domicilio también
+            // Ya existe cliente ➔ Actualizar cliente y domicilio
             console.log('⚡ Cliente ya existe. Actualizando cliente y domicilio...');
 
             const idcliente = clienteExistente[0].idcliente;
@@ -95,8 +96,10 @@ exports.crearPaciente = async (req, res) => {
             );
 
             console.log('✅ Cliente y domicilio actualizados correctamente');
+
+            idPaciente = idcliente; // <-- aquí asignas bien
         } else {
-            // 🔥 No existe cliente ➔ Insertar domicilio y cliente
+            // No existe cliente ➔ Insertar domicilio y cliente
             console.log('✅ Insertando nuevo cliente y domicilio...');
 
             const [insertDomicilio] = await db.query(
@@ -124,17 +127,23 @@ exports.crearPaciente = async (req, res) => {
                     id_domicilio
                 ]
             );
+            idPaciente = insertPaciente.insertId;
 
-            console.log('✅ Paciente nuevo creado con ID:', insertPaciente.insertId);
+            console.log('✅ Paciente nuevo creado con ID:', idPaciente);
         }
 
-        res.status(201).json({ message: 'Paciente registrado o actualizado correctamente' });
+        // 🔥🔥 Finalmente solo un res.json:
+        res.status(200).json({
+            message: "Paciente registrado o actualizado correctamente",
+            id: idPaciente
+        });
 
     } catch (err) {
         console.error('❌ Error al crear/actualizar paciente:', err);
         res.status(500).json({ message: 'Error interno', error: err.message });
     }
 };
+
 
 
 // Buscar usuario
