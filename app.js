@@ -24,6 +24,15 @@ app.get('/api/roles', async (req, res) => {
     const [rows] = await db.query('SELECT idroles, nombrerol FROM roles WHERE enabled = 1');
     res.json(rows);
 });
+app.get('/api/productos', async (req, res) => {
+    try {
+        const [productos] = await db.query('SELECT idproductos, nombre, precio, codigobar, presentacion, gramaje, enabled FROM productos WHERE enabled = 1');
+        res.json(productos);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error al obtener productos' });
+    }
+});
 
 
 app.listen(3000, () => {
