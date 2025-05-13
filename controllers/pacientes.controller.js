@@ -18,16 +18,20 @@ exports.crearPaciente = async (req, res) => {
         if (!usuarioId || usuarioId === 0) {
             const hashedPassword = bcrypt.hashSync(usuario.password, 8);
             const [insertUsuario] = await db.query(
-                'INSERT INTO usuarios (nombreusuario, email, pass,enabled, id_rol) VALUES (?, ?, ?, ?, ?)',
-                [usuario.nombreusuario, usuario.email, hashedPassword, 1, 6]
+                `INSERT INTO usuarios (pass, nombreusuario,nombre,apellidopaterno, apellidomaterno,
+                    nss, email, enabled, id_rol) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [hashedPassword, usuario.nombreusuario, usuario.nombre, usuario.apellidopaterno,
+                 usuario.apellidomaterno,usuario.nss, usuario.email,  1, usuario.id_rol]
             );
             usuarioId = insertUsuario.insertId;
             console.log('✅ Usuario creado con ID:', usuarioId);
         } else {
             const hashedPassword = bcrypt.hashSync(usuario.password, 8);
             await db.query(
-                'UPDATE usuarios SET nombreusuario = ?, email = ?, pass = ? WHERE idusuario = ?',
-                [usuario.nombreusuario, usuario.email, hashedPassword, usuarioId]
+                `UPDATE usuarios SET pass = ?,nombreusuario = ?,nombre = ?,apellidopaterno = ?,
+                 apellidomaterno = ?, nss = ?, email = ?,enabled = 1, id_rol = ?  WHERE idusuario = ?`,
+                [hashedPassword,usuario.nombreusuario, usuario.nombre, usuario.apellidopaterno, usuario.apellidomaterno,
+                    usuario.nss, usuario.email, usuario.id_rol, usuarioId]
             );
             console.log('✅ Usuario actualizado correctamente');
         }
@@ -35,21 +39,16 @@ exports.crearPaciente = async (req, res) => {
         // Buscar si ya existe cliente para este usuario
         const [clienteExistente] = await db.query(
             `SELECT idcliente, id_domicilio FROM cliente c JOIN mercurio.usuarios u
-                                                                on u.idusuario = c.idcliente WHERE idusuario = ? LIMIT 1`,
+                            on u.idusuario = c.idcliente WHERE idusuario = ? LIMIT 1`,
             [usuarioId]
         );
 
         // Buscar colonia, municipio y entidad
-        const [coloniaResult] = await db.query(
-            'SELECT idcolonia, id_municipio, id_codigopostal FROM colonias WHERE nombrecolonia = ? LIMIT 1',
-            [domicilio.coloniasSelected]
-        );
+        const { id_colonia, id_municipio, id_codigopostal } = domicilio;
 
-        if (coloniaResult.length === 0) {
-            return res.status(400).json({ message: 'Colonia no encontrada' });
+        if (!id_colonia || !id_municipio || !id_codigopostal) {
+            return res.status(400).json({ message: 'Faltan datos de colonia' });
         }
-
-        const { idcolonia, id_municipio, id_codigopostal } = coloniaResult[0];
 
         const [municipioResult] = await db.query(
             'SELECT id_entidadfederativa FROM municipio WHERE idmunicipio = ? LIMIT 1',
@@ -97,7 +96,7 @@ exports.crearPaciente = async (req, res) => {
 
             console.log('✅ Cliente y domicilio actualizados correctamente');
 
-            idPaciente = idcliente; // <-- aquí asignas bien
+            idPaciente = idcliente;
         } else {
             // No existe cliente ➔ Insertar domicilio y cliente
             console.log('✅ Insertando nuevo cliente y domicilio...');
@@ -108,10 +107,10 @@ exports.crearPaciente = async (req, res) => {
                     domicilio.calle,
                     domicilio.numero,
                     domicilio.interior || '',
-                    id_codigopostal,
-                    idcolonia,
-                    id_municipio,
-                    id_entidad
+                    domicilio.id_codigopostal,
+                    domicilio.idcolonia,
+                    domicilio.id_municipio,
+                    domicilio.id_entidad
                 ]
             );
             id_domicilio = insertDomicilio.insertId;
@@ -130,6 +129,33 @@ exports.crearPaciente = async (req, res) => {
             idPaciente = insertPaciente.insertId;
 
             console.log('✅ Paciente nuevo creado con ID:', idPaciente);
+        }
+        // Si el usuario es un médico y se envió el objeto 'medico'
+        if (Number(usuario.id_rol) === 5 && req.body.medico) {
+            console.log('🩺 Entrando a la sección de médico');
+            const { cedula, telefono, idespecialidad } = req.body.medico;
+
+            // Verifica si ya existe el médico
+            const [medicoExistente] = await db.query(
+                'SELECT idmedico FROM medico WHERE idusuario = ?',
+                [usuarioId]
+            );
+            console.log('Usuario del medico',usuarioId);
+            if (medicoExistente.length > 0) {
+                console.log('⚠️ Médico ya registrado, actualizando...');
+                await db.query(
+                    'UPDATE medico SET cedula = ?, telefono = ?, idespecialidad = ? WHERE idusuario = ?',
+                    [cedula, telefono, idespecialidad, usuarioId]
+                );
+                console.log('✅ Médico actualizado');
+            } else {
+                console.log('✅ Registrando nuevo médico...');
+                await db.query(
+                    'INSERT INTO medico (idusuario, cedula, telefono, idespecialidad) VALUES (?, ?, ?, ?)',
+                    [usuarioId, cedula, telefono, idespecialidad]
+                );
+                console.log('✅ Médico registrado');
+            }
         }
 
         // 🔥🔥 Finalmente solo un res.json:
@@ -164,24 +190,33 @@ exports.buscarUsuario = async (req, res) => {
     }
 };
 // Buscar colonias por código postal
+// pacientes.controller.js
 exports.buscarColonias = async (req, res) => {
     const { cp } = req.params;
     try {
-        const [rows] = await connection.promise().query(
-            `SELECT
-          c.nombrecolonia,
-          m.nombremunicipio,
-          e.nombreentidad
-       FROM colonias c
-       JOIN municipio m ON c.id_municipio = m.idmunicipio
-       JOIN entidadfederativa e ON m.id_entidadfederativa = e.identidadfederativa
-       JOIN codigopostal cp ON c.id_codigopostal = cp.idcodigopostal
-       WHERE cp.codigopostal = ?`,
-            [cp]
-        );
+        const [rows] = await db.query(`
+            SELECT
+                c.idcolonia AS idcolonia,
+                c.nombrecolonia AS nombrecolonia,
+                c.id_municipio AS idmunicipio,
+                m.nombremunicipio AS nombremunicipio,
+                e.nombreentidad AS nombreentidad,
+                m.id_entidadfederativa AS identidadfederativa,
+                c.id_codigopostal AS id_codigopostal
+            FROM colonias c
+                     JOIN municipio m ON c.id_municipio = m.idmunicipio
+                     JOIN entidadfederativa e ON m.id_entidadfederativa = e.identidadfederativa
+                     JOIN codigopostal cp ON c.id_codigopostal = cp.idcodigopostal
+            WHERE cp.codigopostal = ?
+        `, [cp]);
+
+        console.log('🔍 Resultado de colonias:', rows); // <--- agrega este log
         res.json(rows);
     } catch (error) {
         console.error('❌ Error buscando colonias:', error);
         res.status(500).json({ error: 'Error buscando colonias' });
     }
 };
+
+
+

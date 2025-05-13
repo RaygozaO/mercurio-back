@@ -12,8 +12,6 @@ router.get('/faltantes', async (req, res) => {
         res.status(500).json({ error: 'Error en el servidor' });
     }
 });
-
-
 // Obtener producto por ID
 router.get('/:id', async (req, res) => {
     const { id } = req.params;
@@ -23,8 +21,7 @@ router.get('/:id', async (req, res) => {
         if (rows.length === 0) {
             return res.status(404).json({ message: 'Producto no encontrado' });
         }
-
-        res.json(rows[0]); // solo un producto
+        res.json(rows[0]);
     } catch (err) {
         console.error('Error al obtener producto:', err);
         res.status(500).json({ error: 'Error en el servidor' });
