@@ -1,70 +1,56 @@
-const db = require('../config/db'); // Ahora es pool.promise()
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-
+const db = require('../config/db');
 const SECRET_KEY = process.env.SECRET_KEY || 'mercurio';
+const bcrypt = require('bcryptjs');
 
-// Registro de usuario
-exports.register = async (req, res) => {
-    const { nombreusuario, email, pass, id_rol } = req.body;
-
-    if (!nombreusuario || !email || !pass) {
-        return res.status(400).json({ message: 'Faltan campos requeridos' });
-    }
-
-    try {
-        const hashedPass = bcrypt.hashSync(pass, 8);
-
-        const query = 'INSERT INTO usuarios (nombreusuario, email, pass, id_rol) VALUES (?, ?, ?, ?)';
-        const [result] = await db.query(query, [nombreusuario, email, hashedPass, id_rol || 2]);
-
-        res.status(201).json({ message: 'Usuario creado correctamente' });
-    } catch (error) {
-        console.error('❌ Error al registrar usuario:', error);
-        res.status(500).json({
-            message: 'Error al registrar usuario',
-            sqlMessage: error.sqlMessage,
-            code: error.code,
-            fatal: error.fatal
-        });
-    }
-
-};
-
-// Login de usuario
 exports.login = async (req, res) => {
-    const { email, pass, captchaAnswer, captchaExpected } = req.body;
+    const { email, clave_log } = req.body;
 
-    if (parseInt(captchaAnswer) !== parseInt(captchaExpected)) {
-        return res.status(400).json({ message: 'Captcha incorrecto' });
-    }
+    console.log('📥 Login solicitado:', email, clave_log);
 
     try {
-        const query = 'SELECT * FROM usuarios WHERE email = ?';
-        const [results] = await db.query(query, [email]);
+        const [usuarios] = await db.query('SELECT * FROM usuarios WHERE email = ?', [email]);
+        console.log('👤 Usuarios encontrados:', usuarios.length);
 
-        if (results.length === 0) {
+        if (!usuarios.length) {
             return res.status(401).json({ message: 'Usuario no encontrado' });
         }
 
-        const user = results[0];
-        const isMatch = await bcrypt.compare(pass, user.pass);
+        const usuario = usuarios[0];
+        console.log('🔐 Validando contraseña...');
 
-        if (!isMatch) {
+        const passwordValida = bcrypt.compareSync(clave_log, usuario.pass);
+        if (!passwordValida) {
             return res.status(401).json({ message: 'Contraseña incorrecta' });
         }
 
+        console.log('✅ Contraseña válida. Buscando cliente...');
+
+        const [clientes] = await db.query('SELECT idcliente FROM cliente WHERE id_usuario = ?', [usuario.idusuario]);
+        const idcliente = clientes.length ? clientes[0].idcliente : null;
+
+        console.log('🧾 Cliente:', idcliente);
+
         const token = jwt.sign(
-            { idusuario: user.idusuario, id_rol: user.id_rol },
+            { idusuario: usuario.idusuario, id_rol: usuario.id_rol },
             SECRET_KEY,
-            { expiresIn: '1h' }
+            { expiresIn: '4h' }
         );
 
-        res.json({ token, role: user.id_rol });
+        console.log('🎫 Token generado. Enviando respuesta...');
 
-        console.log('Login correcto');
-    } catch (error) {
-        console.error('❌ Error en login:', error);
-        res.status(500).json({ message: 'Error en el login', error: error.message });
+        res.json({
+            token,
+            role: usuario.id_rol,
+            idusuario: usuario.idusuario,
+            idcliente
+        });
+    } catch (err) {
+        console.error('❌ Error en login:', err);
+        res.status(500).json({ message: 'Error interno del servidor', error: err.message });
     }
+};
+
+exports.register = async (req, res) => {
+    res.send('Registro funcionando'); // ← puedes dejar esto como prueba por ahora
 };

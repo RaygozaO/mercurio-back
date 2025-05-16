@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const bcrypt = require('bcryptjs');
+const querystring = require("node:querystring");
 
 
 exports.crearPaciente = async (req, res) => {
@@ -133,7 +134,7 @@ exports.crearPaciente = async (req, res) => {
         // Si el usuario es un médico y se envió el objeto 'medico'
         if (Number(usuario.id_rol) === 5 && req.body.medico) {
             console.log('🩺 Entrando a la sección de médico');
-            const { cedula, telefono, idespecialidad } = req.body.medico;
+            const { cedula, telefono, idespecialidad, id_horariomedico } = req.body.medico;
 
             // Verifica si ya existe el médico
             const [medicoExistente] = await db.query(
@@ -144,15 +145,16 @@ exports.crearPaciente = async (req, res) => {
             if (medicoExistente.length > 0) {
                 console.log('⚠️ Médico ya registrado, actualizando...');
                 await db.query(
-                    'UPDATE medico SET cedula = ?, telefono = ?, idespecialidad = ? WHERE idusuario = ?',
-                    [cedula, telefono, idespecialidad, usuarioId]
+                    'UPDATE medico SET cedula = ?, telefono = ?, idespecialidad = ?, id_horariomedico = ? WHERE idusuario = ?',
+                    [cedula, telefono, idespecialidad, usuarioId, id_horariomedico]
                 );
+
                 console.log('✅ Médico actualizado');
             } else {
                 console.log('✅ Registrando nuevo médico...');
                 await db.query(
-                    'INSERT INTO medico (idusuario, cedula, telefono, idespecialidad) VALUES (?, ?, ?, ?)',
-                    [usuarioId, cedula, telefono, idespecialidad]
+                    'INSERT INTO medico (idusuario, cedula, telefono, idespecialidad, id_horariomedico) VALUES (?, ?, ?, ?, ?)',
+                    [usuarioId, cedula, telefono, idespecialidad, id_horariomedico]
                 );
                 console.log('✅ Médico registrado');
             }
@@ -169,8 +171,6 @@ exports.crearPaciente = async (req, res) => {
         res.status(500).json({ message: 'Error interno', error: err.message });
     }
 };
-
-
 
 // Buscar usuario
 exports.buscarUsuario = async (req, res) => {
@@ -189,8 +189,7 @@ exports.buscarUsuario = async (req, res) => {
         res.status(500).json({ error: 'Error buscando usuario' });
     }
 };
-// Buscar colonias por código postal
-// pacientes.controller.js
+
 exports.buscarColonias = async (req, res) => {
     const { cp } = req.params;
     try {
@@ -217,6 +216,33 @@ exports.buscarColonias = async (req, res) => {
         res.status(500).json({ error: 'Error buscando colonias' });
     }
 };
+
+exports.buscarPaciente = async (req, res) => {
+    const { term } = req.params;
+    try {
+        const [rows] = await db.query(`
+      SELECT 
+        c.idcliente,
+        c.nombrecliente,
+        c.apellidopaterno,
+        c.apellidomaterno,
+        u.idusuario
+      FROM cliente c
+      INNER JOIN usuarios u ON c.id_usuario = u.idusuario
+      WHERE u.id_rol = 6 
+        AND (
+          c.nombrecliente LIKE ? 
+          OR c.apellidopaterno LIKE ? 
+          OR c.apellidomaterno LIKE ?
+        )
+    `, [`%${term}%`, `%${term}%`, `%${term}%`]);
+
+        res.json(rows);
+    } catch (error) {
+        console.error('❌ Error al buscar pacientes:', error);
+        res.status(500).json({ message: 'Error al buscar pacientes' });
+    }
+}
 
 
 

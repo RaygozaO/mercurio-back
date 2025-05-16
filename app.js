@@ -7,7 +7,7 @@ const db = require('./config/db');
 const authRoutes = require('./auth/auth.routes');
 const pacientesRoutes = require('./routes/pacientes.routes');
 const coloniasRoutes = require('./routes/colonias.routes');
-const citasRoutes = require('./routes/citas.routes');
+
 
 // 🛡️ Configurar CORS
 app.use(cors({
@@ -20,7 +20,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/pacientes', pacientesRoutes);
 app.use('/api/colonias', coloniasRoutes);
-app.use('api/citas', citasRoutes);
+
 /*end point Definicion de roles*/
 app.get('/api/roles', async (req, res) => {
     const [rows] = await db.query('SELECT idroles, nombrerol FROM roles WHERE enabled = 1');
@@ -59,6 +59,19 @@ app.use('/api/productos', productosRoutes);
 
 const especialidadesRoutes = require('./routes/especialidades.routes');
 app.use('/api/especialidades', especialidadesRoutes);
+
+const horariosRoutes = require('./routes/horarios.routes');
+app.use('/api/horarios', horariosRoutes);
+
+const citasRoutes = require('./routes/citas.routes');
+app.use('/api/citas', citasRoutes);
+
+app.get('/api/test-cors', (req, res) => {
+    res.json({ message: 'CORS funcionando correctamente' });
+});
+
+const recetaRoutes = require('./routes/recetas.routes');
+app.use('/api/recetas', recetaRoutes);
 
 app.listen(3000, () => {
     console.log('🚀 Backend iniciado en http://localhost:3000');

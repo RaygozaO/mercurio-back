@@ -17,5 +17,9 @@ router.get('/perfil', verifyToken, (req, res) => {
     });
 });
 
+router.post('/test', (req, res) => {
+    res.send('Ruta funcionando');
+});
+
 
 module.exports = router;

@@ -11,4 +11,6 @@ router.get('/buscar/:termino', pacienteController.buscarUsuario);
 // Buscar colonias por código postal
 router.get('/colonias/:cp', pacienteController.buscarColonias);
 
+router.get('/paciente/:term', pacienteController.buscarPaciente);
+
 module.exports = router;
