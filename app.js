@@ -73,6 +73,9 @@ app.get('/api/test-cors', (req, res) => {
 const recetaRoutes = require('./routes/recetas.routes');
 app.use('/api/recetas', recetaRoutes);
 
+const referenciaRoutes = require('./routes/referencia.routes');
+app.use('/api/referencias', referenciaRoutes);
+
 app.listen(3000, () => {
     console.log('🚀 Backend iniciado en http://localhost:3000');
 });
