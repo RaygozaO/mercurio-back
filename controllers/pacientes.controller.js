@@ -19,8 +19,7 @@ exports.crearPaciente = async (req, res) => {
         if (!usuarioId || usuarioId === 0) {
             const hashedPassword = bcrypt.hashSync(usuario.password, 8);
             const [insertUsuario] = await db.query(
-                `INSERT INTO usuarios (pass, nombreusuario,nombre,apellidopaterno, apellidomaterno,
-                    nss, email, enabled, id_rol) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                `INSERT INTO usuarios (pass, nombreusuario,email, enabled, id_rol) VALUES (?, ?, ?, ?, ?)`,
                 [hashedPassword, usuario.nombreusuario, usuario.nombre, usuario.apellidopaterno,
                  usuario.apellidomaterno,usuario.nss, usuario.email,  1, usuario.id_rol]
             );
@@ -29,10 +28,8 @@ exports.crearPaciente = async (req, res) => {
         } else {
             const hashedPassword = bcrypt.hashSync(usuario.password, 8);
             await db.query(
-                `UPDATE usuarios SET pass = ?,nombreusuario = ?,nombre = ?,apellidopaterno = ?,
-                 apellidomaterno = ?, nss = ?, email = ?,enabled = 1, id_rol = ?  WHERE idusuario = ?`,
-                [hashedPassword,usuario.nombreusuario, usuario.nombre, usuario.apellidopaterno, usuario.apellidomaterno,
-                    usuario.nss, usuario.email, usuario.id_rol, usuarioId]
+                `UPDATE usuarios SET pass = ?,nombreusuario = ?, email = ?,enabled = 1, id_rol = ?  WHERE idusuario = ?`,
+                [hashedPassword,usuario.nombreusuario, usuario.email, usuario.id_rol, usuarioId]
             );
             console.log('✅ Usuario actualizado correctamente');
         }

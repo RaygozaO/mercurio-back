@@ -52,5 +52,36 @@ exports.login = async (req, res) => {
 };
 
 exports.register = async (req, res) => {
-    res.send('Registro funcionando'); // ← puedes dejar esto como prueba por ahora
+    const { nombreusuario, email, pass, id_rol = 6 } = req.body; // Rol por defecto: 6
+
+    if (!nombreusuario || !email || !pass) {
+        return res.status(400).json({ message: 'Faltan datos obligatorios' });
+    }
+
+    try {
+        // Verifica si ya existe un usuario con ese correo
+        const [usuariosExistentes] = await db.query(
+            'SELECT idusuario FROM usuarios WHERE email = ?',
+            [email]
+        );
+
+        if (usuariosExistentes.length > 0) {
+            return res.status(409).json({ message: 'El email ya está registrado' });
+        }
+
+        // Hashea la contraseña
+        const hashedPassword = bcrypt.hashSync(pass, 8);
+
+        // Inserta el usuario en la base de datos
+        const [resultado] = await db.query(
+            'INSERT INTO usuarios (nombreusuario, email, pass, id_rol, enabled) VALUES (?, ?, ?, ?, ?)',
+            [nombreusuario, email, hashedPassword, id_rol, 6]
+        );
+
+        res.status(201).json({ message: 'Usuario registrado correctamente', idusuario: resultado.insertId });
+
+    } catch (error) {
+        console.error('Error al registrar usuario:', error);
+        res.status(500).json({ message: 'Error interno del servidor' });
+    }
 };
