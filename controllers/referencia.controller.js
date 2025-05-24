@@ -50,3 +50,22 @@ exports.obtenerTodasLasReferencias = async (req, res) => {
     }
 };
 
+exports.obtenerIdMedicoPorUsuario = async (req, res) => {
+    const idusuario = req.params.id;
+
+    try {
+        const [rows] = await db.query(
+            'SELECT idmedico FROM medico WHERE idusuario = ?',
+            [idusuario]
+        );
+
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'Médico no encontrado' });
+        }
+
+        res.status(200).json(rows[0]);
+    } catch (error) {
+        console.error('❌ Error obteniendo médico por usuario:', error);
+        res.status(500).json({ message: 'Error al obtener médico', error });
+    }
+};
