@@ -4,6 +4,7 @@ const SECRET_KEY = process.env.SECRET_KEY || 'mercurio';
 const bcrypt = require('bcryptjs');
 
 exports.login = async (req, res) => {
+    console.log('🔍 BODY RECIBIDO:', req.body);
     const { email, clave_log } = req.body;
 
     console.log('📥 Login solicitado:', email, clave_log);
@@ -82,6 +83,31 @@ exports.register = async (req, res) => {
 
     } catch (error) {
         console.error('Error al registrar usuario:', error);
+        res.status(500).json({ message: 'Error interno del servidor' });
+    }
+};
+
+exports.obtenerUsuarioPorId = async (req, res) => {
+    const id = req.params.id;
+
+    try {
+        const [usuarios] = await db.query(
+            `SELECT u.idusuario, u.nombreusuario, u.email, u.id_rol, 
+              c.nombrecliente AS nombre, c.apellidopaterno, r.nombrerol AS rol
+       FROM usuarios u
+       LEFT JOIN cliente c ON c.id_usuario = u.idusuario
+       LEFT JOIN roles r ON r.idroles = u.id_rol
+       WHERE u.idusuario = ?`,
+            [id]
+        );
+
+        if (!usuarios.length) {
+            return res.status(404).json({ message: 'Usuario no encontrado' });
+        }
+
+        res.json(usuarios[0]);
+    } catch (error) {
+        console.error('❌ Error al obtener el usuario por ID:', error);
         res.status(500).json({ message: 'Error interno del servidor' });
     }
 };

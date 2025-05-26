@@ -1,5 +1,5 @@
 const express = require('express');
-const cors = require('cors'); // 👈 IMPORTANTE
+const cors = require('cors');
 const app = express();
 require('dotenv').config();
 const db = require('./config/db');
@@ -15,8 +15,9 @@ app.use(cors({
     methods: 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
     credentials: true
 }));
-
 app.use(express.json());
+
+
 app.use('/api/auth', authRoutes);
 app.use('/api/pacientes', pacientesRoutes);
 app.use('/api/colonias', coloniasRoutes);

@@ -1,5 +1,5 @@
 const express = require('express');
-const { register, login } = require('./auth.controller');
+const { register, login, obtenerUsuarioPorId} = require('./auth.controller');
 const router = express.Router();
 
 router.post('/login', login);
@@ -21,5 +21,6 @@ router.post('/test', (req, res) => {
     res.send('Ruta funcionando');
 });
 
+router.get('/usuario/:id', obtenerUsuarioPorId);
 
 module.exports = router;
