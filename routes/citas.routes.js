@@ -45,19 +45,40 @@ router.post('/', async (req, res) => {
     } = req.body;
 
     try {
+        // 🔎 1. Obtener horario del médico
+        const [horarios] = await db.query(`
+            SELECT hm.horaingreso AS desde, hm.horasalida AS hasta
+            FROM medico m
+                     LEFT JOIN horariomedicos hm ON m.id_horariomedico = hm.idhorario
+            WHERE m.idusuario = ?
+        `, [id_usuario]);
+
+        if (!horarios.length) {
+            return res.status(400).json({ message: 'El médico no tiene horario asignado.' });
+        }
+
+        const { desde, hasta } = horarios[0];
+
+        // 🔒 2. Validar que la hora esté dentro del rango
+        if (horacita < desde || horacita > hasta) {
+            return res.status(400).json({ message: `La hora ${horacita} está fuera del horario permitido: ${desde} - ${hasta}` });
+        }
+
+        // ✅ 3. Insertar si pasa la validación
         const [result] = await db.query(`
-            INSERT INTO citas (title, start, horacita, end, color, id_cliente, id_horario, id_usuario, enabled)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [title, start, horacita, end, color, id_cliente,id_horario, id_usuario, 1]);
+      INSERT INTO citas (title, start, horacita, end, color, id_cliente, id_horario, id_usuario, enabled)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [title, start, horacita, end, color, id_cliente, id_horario, id_usuario, 1]);
 
         res.json({ message: 'Cita creada', id: result.insertId });
+
     } catch (error) {
         console.error('❌ Error al crear cita:', error);
         res.status(500).json({ message: 'Error al crear cita', error: error.message });
     }
 });
 
-// GET /api/citas/medicos - doctores disponibles
+
 router.get('/medicos', async (req, res) => {
     try {
         const [rows] = await db.query(`
@@ -67,20 +88,25 @@ router.get('/medicos', async (req, res) => {
                 c.nombrecliente,
                 m.cedula,
                 m.telefono,
-                m.id_horariomedico,
-                m.idusuario
+                m.idusuario,
+                m.id_horariomedico AS id_horario,
+                hm.horaingreso AS desde,
+                hm.horasalida AS hasta
             FROM medico m
                      INNER JOIN cliente c ON m.idusuario = c.id_usuario
                      INNER JOIN usuarios u ON m.idusuario = u.idusuario
+                     LEFT JOIN horariomedicos hm ON m.id_horariomedico = hm.idhorario
             WHERE u.id_rol = 5;
         `);
         res.json(rows);
     } catch (error) {
-        console.error('Error al obtener los doctores:', error);
+        console.error('Error al obtener los doctores con horario:', error);
         res.status(500).json({ message: 'Error al obtener doctores' });
     }
 });
-// GET /api/citas/fecha/:fecha - citas por fecha
+
+
+
 router.get('/fecha/:fecha', async (req, res) => {
     const { fecha } = req.params;
     try {
