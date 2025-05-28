@@ -240,6 +240,23 @@ exports.buscarPaciente = async (req, res) => {
         res.status(500).json({ message: 'Error al buscar pacientes' });
     }
 }
+// controllers/usuario.controller.js
+exports.getPerfil = async (req, res) => {
+    const userId = req.userId; // Asumiendo que se obtiene desde JWT
+    const [rows] = await db.query('SELECT nombreusuario, email FROM usuarios WHERE idusuario = ?', [userId]);
+    res.json(rows[0]);
+};
+
+exports.updatePerfil = async (req, res) => {
+    const userId = req.userId;
+    const { nombreusuario, email, telefono } = req.body;
+
+    await db.query(
+        'UPDATE usuarios SET nombreusuario = ?, email = ? WHERE idusuario = ?',
+        [nombreusuario, email, telefono, userId]
+    );
+    res.json({ message: 'Datos actualizados correctamente' });
+};
 
 
 

@@ -77,6 +77,9 @@ app.use('/api/recetas', recetaRoutes);
 const referenciaRoutes = require('./routes/referencia.routes');
 app.use('/api/referencias', referenciaRoutes);
 
+
+app.use('/api/perfil', require('./routes/perfil.routes'));
+
 app.listen(3000, () => {
     console.log('🚀 Backend iniciado en http://localhost:3000');
 });

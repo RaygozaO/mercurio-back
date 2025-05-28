@@ -13,4 +13,5 @@ router.get('/colonias/:cp', pacienteController.buscarColonias);
 
 router.get('/paciente/:term', pacienteController.buscarPaciente);
 
+
 module.exports = router;
